@@ -45,6 +45,55 @@ def add_material(material, mat_map, materials):
         materials.append(mat_item)
         return idx
 
+octants = [
+    (True, True, True),
+    (False, True, True),
+    (True, False, True),
+    (False, False, True),
+    (True, True, False),
+    (False, True, False),
+    (True, False, False),
+    (False, False, False),
+]
+
+def is_shadowed(v1, v2, o):
+    direction = v2 - v1
+
+    if not octants[o][0]:
+        direction.x = -direction.x
+
+    if not octants[o][1]:
+        direction.y = -direction.y
+
+    if not octants[o][2]:
+        direction.z = -direction.z
+
+    return direction.x >= 0.0 and direction.y >= 0.0 and direction.z >= 0.0
+
+def get_vertices_in_octant(vertices, o):
+    octant_indices = []
+
+    for idx, vtx in enumerate(vertices):
+        should_add = True
+        octant_indices_2 = []
+
+        for idx_2 in octant_indices:
+            vtx2 = vertices[idx_2]
+
+            if is_shadowed(vtx, vtx2, o):
+                should_add = False
+                octant_indices_2 = octant_indices
+                break
+
+            if not is_shadowed(vtx2, vtx, o):
+                octant_indices_2.append(idx_2)
+
+        if should_add:
+            octant_indices_2.append(idx)
+
+        octant_indices = octant_indices_2
+
+    return octant_indices
 
 def polygon_from_object(obj, geometry, verts_map, mat_map, matrix):
     vertices = geometry.vertices
@@ -230,7 +279,8 @@ def geometry_from_object(obj, sollum_type=SollumType.BOUND_GEOMETRYBVH, is_frag=
     if type(geometry) is ybnxml.BoundGeometry:
         if len(geometry.vertices_2) == 0:
             geometry.vertices_2 = geometry.vertices
-
+        for o in range(8):
+            geometry.octants.append(get_vertices_in_octant(geometry.vertices_2, o))
     return geometry
 
 
